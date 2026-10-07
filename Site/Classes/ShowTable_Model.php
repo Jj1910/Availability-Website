@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 class ShowTableModel extends Dbh {
 
-    protected function getData(string $tableName) {
-        $query = "SELECT * FROM " . $tableName . ";";
-        $stmt = parent::connect()->prepare($query);
+    /* Only these tables may ever be rendered. */
+    private const ALLOWED_TABLES = ["availability"];
+
+    protected function getData(string $tableName): array {
+        if (!in_array($tableName, self::ALLOWED_TABLES, true)) {
+            throw new InvalidArgumentException("Unknown table: " . $tableName);
+        }
+
+        $stmt = parent::connect()->prepare("SELECT * FROM `{$tableName}`");
         $stmt->execute();
 
-        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        return $result;
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

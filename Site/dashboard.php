@@ -1,31 +1,18 @@
 <?php
 require_once 'includes/config_session.inc.php';
+require_once 'includes/bootstrap.inc.php';
 
-if(!isset($_SESSION["user_id"])) {
+if (!isset($_SESSION["user_id"])) {
     header("Location: ./index.php");
-    die();
+    exit;
 }
-if(!$_SESSION["is_admin"]) {
+if (!$_SESSION["is_admin"]) {
     header("Location: ./availabilityform.php");
-    die();
+    exit;
 }
-if($_GET){
-    if($_GET["error"] === "usernametaken") {
-        echo "<h1>Username is Already Taken!</h1>";
-    }
-    if($_GET["error"] === "emailinvalid") {
-        echo "<h1>Please Enter a Valid Email!</h1>";
-    }
-    if($_GET["error"] === "emailtaken") {
-        echo "<h1>Email is Already Taken!</h1>";
-    }
-    if($_GET["error"] === "inputempty") {
-        echo "<h1>Please Fill out all Fields!</h1>";
-    }
-    if($_GET["error"] === "false") {
-        echo "<h1>User Successfully Created!</h1>";
-    }
-}
+
+$error = $_GET["error"] ?? "";
+$msg = $_GET["msg"] ?? "";
 ?>
 
 <!DOCTYPE html>
@@ -40,33 +27,55 @@ if($_GET){
 
 <body>
     <h1>
-        <?php
-        echo "You are logged in as " . htmlspecialchars($_SESSION["user_username"]) . " and are an admin!";
-        ?>
+        You are logged in as <?= htmlspecialchars($_SESSION["user_username"] ?? "", ENT_QUOTES) ?> and are an admin!
     </h1>
+
+    <?php if ($msg === "usercreated"): ?>
+        <div class="alert alert-success">User created successfully!</div>
+    <?php endif; ?>
+    <?php if ($error === "usernametaken"): ?>
+        <div class="alert alert-error">Username is already taken!</div>
+    <?php endif; ?>
+    <?php if ($error === "emailinvalid"): ?>
+        <div class="alert alert-error">Please enter a valid email!</div>
+    <?php endif; ?>
+    <?php if ($error === "emailtaken"): ?>
+        <div class="alert alert-error">Email is already taken!</div>
+    <?php endif; ?>
+    <?php if ($error === "inputempty"): ?>
+        <div class="alert alert-error">Please fill out all fields!</div>
+    <?php endif; ?>
+    <?php if ($error === "badusername"): ?>
+        <div class="alert alert-error">Username must be 1-50 characters!</div>
+    <?php endif; ?>
+    <?php if ($error === "shortpassword"): ?>
+        <div class="alert alert-error">Password must be at least 8 characters!</div>
+    <?php endif; ?>
+    <?php if ($error === "csrf"): ?>
+        <div class="alert alert-error">Your form session expired. Please go back and try again.</div>
+    <?php endif; ?>
 
     <h2>Add New Users!</h2>
 
     <form action="includes/adduser.inc.php" method="post">
-        <input required type="text" name="username" placeholder="Username">
-        <input required type="password" name="pwd" placeholder="Password">
-        <input required type="email" name="email" placeholder="E-Mail">
-        <input type="hidden" name="isAdmin" value="0">
+        <?= csrf_field() ?>
+        <input required type="text" name="username" placeholder="Username" maxlength="50" autocomplete="off">
+        <input required type="password" name="pwd" placeholder="Password (min 8 characters)" minlength="8" autocomplete="new-password">
+        <input required type="email" name="email" placeholder="E-Mail" autocomplete="off">
         <div class="checkbox-container">
+            <input type="hidden" name="isAdmin" value="0">
             <input type="checkbox" id="isAdmin" name="isAdmin" value="1">
             <label for="isAdmin">Is User an Admin?</label>
         </div>
-        <br><br>
         <button>Add User</button>
     </form>
 
-    <br>
     <form action="./availability.php">
-        <button>Availability</button> 
+        <button>Availability</button>
     </form>
-    <br>
 
     <form action="includes/logout.inc.php" method="post">
+        <?= csrf_field() ?>
         <button>Logout</button>
     </form>
 </body>

@@ -2,39 +2,35 @@
 
 declare(strict_types=1);
 
-Class AvailabilityContr extends AvailabilityModel {
-    private $userId;
-    private $mondayStartTime;
-    private $mondayEndTime;
-    private $tuesdayStartTime;
-    private $tuesdayEndTime;
-    private $wednesdayStartTime;
-    private $wednesdayEndTime;
-    private $thursdayStartTime;
-    private $thursdayEndTime;
-    private $fridayStartTime;
-    private $fridayEndTime;
+class AvailabilityContr extends AvailabilityModel {
+    private int $userId;
 
-    public function __construct(int $userId, string $mondayStartTime, string $mondayEndTime, string $tuesdayStartTime, string $tuesdayEndTime, string $wednesdayStartTime, string $wednesdayEndTime, string $thursdayStartTime, string $thursdayEndTime, string $fridayStartTime, string $fridayEndTime) {
+    /** @var array<string, string|null> e.g. monday_start => "09:00" */
+    private array $times;
+
+    public function __construct(int $userId, array $times) {
         $this->userId = $userId;
-
-        $this->mondayStartTime = $mondayStartTime;
-        $this->mondayEndTime = $mondayEndTime;
-
-        $this->tuesdayStartTime = $tuesdayStartTime;
-        $this->tuesdayEndTime = $tuesdayEndTime;
-
-        $this->wednesdayStartTime = $wednesdayStartTime;
-        $this->wednesdayEndTime = $wednesdayEndTime;
-
-        $this->thursdayStartTime = $thursdayStartTime;
-        $this->thursdayEndTime = $thursdayEndTime;
-
-        $this->fridayStartTime = $fridayStartTime;
-        $this->fridayEndTime = $fridayEndTime;
+        $this->times = $times;
     }
 
-    public function submitAvailability() {
-        parent::UpdateAvailability($this->userId, $this->mondayStartTime, $this->mondayEndTime, $this->tuesdayStartTime, $this->tuesdayEndTime, $this->wednesdayStartTime, $this->wednesdayEndTime, $this->thursdayStartTime, $this->thursdayEndTime, $this->fridayStartTime, $this->fridayEndTime);
+    public function submitAvailability(): void {
+        parent::updateAvailability($this->userId, $this->times);
+    }
+
+    /** Stored times for pre-filling the form (empty array if none yet). */
+    public function currentTimes(): array {
+        $row = parent::getAvailability($this->userId);
+
+        if ($row === []) {
+            return [];
+        }
+
+        $times = [];
+        foreach (["monday", "tuesday", "wednesday", "thursday", "friday"] as $day) {
+            $times[$day . "_start"] = $row[$day . "StartTime"] ?? null;
+            $times[$day . "_end"] = $row[$day . "EndTime"] ?? null;
+        }
+
+        return $times;
     }
 }

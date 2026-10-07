@@ -6,26 +6,41 @@ services:
     container_name: "AvailabilitySite"
     volumes:
       - ./Site:/var/www/html:ro
+    environment:
+      DB_HOST: ${DB_HOST:-AvailabilityDB}
+      DB_NAME: ${MYSQL_DATABASE:-availability_site}
+      DB_USER: ${MYSQL_USER:-availability}
+      DB_PASS: ${MYSQL_PASSWORD:-availability_dev_pw}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    depends_on:
+      AvailabilityDB:
+        condition: service_healthy
+    ports:
+      - "80:80"
     networks:
       - "Frontend"
       - "AvailabilityBackend"
-    depends_on:
-      - AvailabilityDB
-    ports:
-      - 80:80
 
   AvailabilityDB:
-    image: mysql
+    image: mysql:8.4
     container_name: "AvailabilityDB"
     environment:
-      MYSQL_RANDOM_ROOT_PASSWORD: true
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_RANDOM_ROOT_PASSWORD: "true"
+      MYSQL_USER: ${MYSQL_USER:-availability}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-availability_dev_pw}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-availability_site}
     volumes:
-      - ./data:/var/lib/mysql
+      - ./Data:/var/lib/mysql
+      - ./init-sql:/docker-entrypoint-initdb.d:ro
     ports:
-      - 3306:3306
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
     networks:
       - "AvailabilityBackend"
 

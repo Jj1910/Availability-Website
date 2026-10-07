@@ -2,23 +2,13 @@
 
 declare(strict_types=1);
 
-Class ShowTableContr extends ShowTableModel {
-    
-    protected function isValidTable (string $table) {
-        try {
-            parent::getData($table);
-            return true;
-        } catch (PDOException $e) {
-            echo "Error getting table: " . $e->getMessage();
-            return false; 
-        }
-    }
+class ShowTableContr extends ShowTableModel {
 
-    protected function retrieveTable (string $table){
-        if ($this->isValidTable($table)) {
-            return parent::getData($table);
-        } else {
-            return "";
-        }
+    /**
+     * Fetch the table in a single query (the table is guaranteed to exist
+     * by includes/bootstrap.inc.php).
+     */
+    protected function retrieveTable(string $table): array {
+        return parent::getData($table);
     }
 }

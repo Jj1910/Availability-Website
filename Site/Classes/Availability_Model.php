@@ -4,27 +4,45 @@ declare(strict_types=1);
 
 class AvailabilityModel extends Dbh {
 
-    protected function UpdateAvailability(int $userId, string $mondayStartTime, string $mondayEndTime, string $tuesdayStartTime, string $tuesdayEndTime, string $wednesdayStartTime, string $wednesdayEndTime, string $thursdayStartTime, string $thursdayEndTime, string $fridayStartTime, string $fridayEndTime) {
-        $query = "UPDATE availability SET mondayStartTime=:mondayStartTime, mondayEndTime=:mondayEndTime, tuesdayStartTime=:tuesdayStartTime, tuesdayEndTime=:tuesdayEndTime, wednesdayStartTime=:wednesdayStartTime, wednesdayEndTime=:wednesdayEndTime, thursdayStartTime=:thursdayStartTime, thursdayEndTime=:thursdayEndTime, fridayStartTime=:fridayStartTime, fridayEndTime=:fridayEndTime WHERE user_id=:userId";
+    private const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+
+    /**
+     * $times: [monday_start, monday_end, tuesday_start, ..., friday_end]
+     * (null = that slot is left blank in the form)
+     */
+    protected function updateAvailability(int $userId, array $times): void {
+        $setClauses = [];
+        $params = ["userId" => $userId];
+
+        foreach (self::DAYS as $day) {
+            $setClauses[] = $day . "StartTime = :" . $day . "StartTime";
+            $setClauses[] = $day . "EndTime = :" . $day . "EndTime";
+            $params[$day . "StartTime"] = $times[$day . "_start"] ?? null;
+            $params[$day . "EndTime"] = $times[$day . "_end"] ?? null;
+        }
+
+        $query = "UPDATE availability SET " . implode(", ", $setClauses)
+            . " WHERE user_id = :userId";
 
         $stmt = parent::connect()->prepare($query);
-        $stmt->bindParam(":userId", $userId);
 
-        $stmt->bindParam(":mondayStartTime", $mondayStartTime);
-        $stmt->bindParam(":mondayEndTime", $mondayEndTime);
-
-        $stmt->bindParam(":tuesdayStartTime", $tuesdayStartTime);
-        $stmt->bindParam(":tuesdayEndTime", $tuesdayEndTime);
-
-        $stmt->bindParam(":wednesdayStartTime", $wednesdayStartTime);
-        $stmt->bindParam(":wednesdayEndTime", $wednesdayEndTime);
-
-        $stmt->bindParam(":thursdayStartTime", $thursdayStartTime);
-        $stmt->bindParam(":thursdayEndTime", $thursdayEndTime);
-
-        $stmt->bindParam(":fridayStartTime", $fridayStartTime);
-        $stmt->bindParam(":fridayEndTime", $fridayEndTime);
+        foreach ($params as $name => $value) {
+            $type = $value === null
+                ? PDO::PARAM_NULL
+                : (is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+            $stmt->bindValue(":" . $name, $value, $type);
+        }
 
         $stmt->execute();
+    }
+
+    protected function getAvailability(int $userId): array {
+        $stmt = parent::connect()->prepare(
+            "SELECT * FROM availability WHERE user_id = :userId"
+        );
+        $stmt->execute(["userId" => $userId]);
+
+        $row = $stmt->fetch();
+        return is_array($row) ? $row : [];
     }
 }

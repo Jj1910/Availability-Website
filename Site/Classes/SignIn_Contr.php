@@ -2,55 +2,55 @@
 
 declare(strict_types=1);
 
-Class SignInContr extends SignInModel {
-    private $username;
-    private $pwd;
-    
-    public function __construct(string $username, string $pwd) {
+class SignInContr extends SignInModel {
+    private string $username;
+    private string $pwd;
+    private string $ip;
+
+    public function __construct(string $username, string $pwd, string $ip) {
         $this->username = $username;
         $this->pwd = $pwd;
+        $this->ip = $ip;
     }
 
-    private function is_input_empty() {
-        if (empty($this->username) || empty($this->pwd)){
-            return true;
-        } else {
-            return false;
-        }
+    private function is_input_empty(): bool {
+        return $this->username === "" || $this->pwd === "";
     }
 
-    private function is_password_wrong(string $pwd, string $hashedPwd) {
-        if (!password_verify($pwd, $hashedPwd)){
-            return true;
-        } else {
-            return false;
-        }
+    private function is_password_wrong(string $pwd, string $hashedPwd): bool {
+        return !password_verify($pwd, $hashedPwd);
     }
 
-    public function signInUser(){
-        if ($this->is_input_empty()){
+    public function signInUser(): void {
+        if ($this->is_input_empty()) {
             header("Location: ../index.php?error=inputempty");
-            die();
+            exit;
         }
-        
+
+        if (parent::isThrottled($this->ip)) {
+            header("Location: ../index.php?error=toomany");
+            exit;
+        }
+
         $result = parent::getUser($this->username);
 
-        if(!$result || $this->is_password_wrong($this->pwd, $result["pwd"])) {
+        if ($result === [] || $this->is_password_wrong($this->pwd, (string)$result["pwd"])) {
+            parent::recordFailedAttempt($this->ip);
             header("Location: ../index.php?error=invalidlogon");
-            die();
-        } 
+            exit;
+        }
 
-        #$newSessionId = session_create_id();
-        #$sessionId = $newSessionId . "_" . $result["id"];
-        #session_id($sessionId);
+        parent::clearFailedAttempts($this->ip);
 
-        $_SESSION["user_id"] = $result["id"];
-        $_SESSION["user_username"] = htmlspecialchars($result["username"]);
-        $_SESSION["is_admin"] = $result["is_admin"];
+        /* Fresh session id + CSRF token for the logged-in state. */
+        regenerate_session_id();
+        unset($_SESSION['csrf_token']);
 
-        $_SESSION["last_regeneration"] = time();
+        $_SESSION["user_id"] = (int)$result["id"];
+        $_SESSION["user_username"] = (string)$result["username"];
+        $_SESSION["is_admin"] = (bool)$result["is_admin"];
 
-        header("Location: ../index.php");
-        die();
+        header("Location: ../index.php?msg=loggedin");
+        exit;
     }
 }

@@ -1,9 +1,10 @@
 <?php
 require_once 'includes/config_session.inc.php';
+require_once 'includes/bootstrap.inc.php';
 
-if(!$_SESSION["is_admin"]) {
+if (!isset($_SESSION["user_id"]) || !$_SESSION["is_admin"]) {
     header("Location: ./index.php");
-    die();
+    exit;
 }
 ?>
 
@@ -14,11 +15,10 @@ if(!$_SESSION["is_admin"]) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/main.css">
-    <title>Availability Form</title>
+    <title>Availability</title>
 </head>
 
 <body>
-
     <h1>Availability</h1>
 
     <?php
@@ -30,6 +30,7 @@ if(!$_SESSION["is_admin"]) {
     </form>
 
     <form action="includes/logout.inc.php" method="post">
+        <?= csrf_field() ?>
         <button>Logout</button>
     </form>
 </body>

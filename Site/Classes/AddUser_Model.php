@@ -3,61 +3,59 @@
 declare(strict_types=1);
 
 class AddUserModel extends Dbh {
-    private $username;
-    private $pwd;
-    private $email;
-    private $isAdmin;
 
-    protected function get_username(string $username) {
+    protected function get_username(string $username): array {
         $query = "SELECT username FROM users WHERE username = :username;";
         $stmt = parent::connect()->prepare($query);
-        $stmt->bindParam(":username", $username);
-        $stmt->execute();
-    
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result;
+        $stmt->execute(["username" => $username]);
+
+        $result = $stmt->fetch();
+        return is_array($result) ? $result : [];
     }
-    
-    protected function get_email(string $email) {
+
+    protected function get_email(string $email): array {
         $query = "SELECT email FROM users WHERE email = :email;";
         $stmt = parent::connect()->prepare($query);
-        $stmt->bindParam(":email", $email);
-        $stmt->execute();
-    
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result;
+        $stmt->execute(["email" => $email]);
+
+        $result = $stmt->fetch();
+        return is_array($result) ? $result : [];
     }
 
-    protected function AddUserToDB(string $username, string $pwd, string $email, bool $isAdmin) {
-        if($isAdmin){
-            $query = "INSERT INTO users (username, pwd, email, is_admin) VALUES (:username, :pwd, :email, :isAdmin);";
-            $stmt = parent::connect()->prepare($query);
-            $hashedPwd = password_hash($pwd, PASSWORD_DEFAULT);
-            $stmt->bindParam(":username", $username);
-            $stmt->bindParam(":pwd", $hashedPwd);
-            $stmt->bindParam(":email", $email);
-            $stmt->bindParam(":isAdmin", $isAdmin);
-            $stmt->execute();
-        } else {
-            $query = "INSERT INTO users (username, pwd, email) VALUES (:username, :pwd, :email);";
-            $stmt = parent::connect()->prepare($query);
-            $hashedPwd = password_hash($pwd, PASSWORD_DEFAULT);
-            $stmt->bindParam(":username", $username);
-            $stmt->bindParam(":pwd", $hashedPwd);
-            $stmt->bindParam(":email", $email);
-            $stmt->execute();
+    /**
+     * Insert the user and (for non-admins) their availability row
+     * atomically.
+     */
+    protected function addUserToDB(string $username, string $pwd, string $email, bool $isAdmin): void {
+        $pdo = parent::connect();
+        $pdo->beginTransaction();
 
-            $query = "SELECT id FROM users WHERE username=:username";
-            $stmt = parent::connect()->prepare($query);
-            $stmt->bindParam(":username", $username);
-            $stmt->execute();
-            $userid = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-            $query = "INSERT INTO availability (username, user_id) VALUES (:username, :userid);";
-            $stmt = parent::connect()->prepare($query);
-            $stmt->bindParam(":username", $username);
-            $stmt->bindParam(":userid", $userid["id"]);
-            $stmt->execute();
+        try {
+            $hashedPwd = password_hash($pwd, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT);
+
+            $stmt = $pdo->prepare(
+                "INSERT INTO users (username, pwd, email, is_admin)
+                 VALUES (:username, :pwd, :email, :isAdmin)"
+            );
+            $stmt->execute([
+                "username" => $username,
+                "pwd" => $hashedPwd,
+                "email" => $email,
+                "isAdmin" => $isAdmin ? 1 : 0,
+            ]);
+
+            if (!$isAdmin) {
+                $userId = (int)$pdo->lastInsertId();
+                $stmt = $pdo->prepare(
+                    "INSERT INTO availability (username, user_id) VALUES (:username, :userId)"
+                );
+                $stmt->execute(["username" => $username, "userId" => $userId]);
+            }
+
+            $pdo->commit();
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            throw $e;
         }
     }
 }
